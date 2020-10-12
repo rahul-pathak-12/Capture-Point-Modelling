@@ -1,0 +1,57 @@
+
+path = "D:\OneDrive\Rahul\Education\Masters\Edinburgh\Artificial Intelligence\Modules 2018-2019\Dissertation\prelim_code\TRAIN\"; 
+%path = "D:\OneDrive\Rahul\Education\Masters\Edinburgh\Artificial Intelligence\Modules 2018-2019\Dissertation\prelim_code\TEST\"; 
+
+myfiles = dir(path);
+filenames={myfiles(:).name}';
+filefolders={myfiles(:).folder}';
+files=filenames(endsWith(filenames,'.sto'));
+folders=filefolders(endsWith(filenames,'.sto'));
+all_files=fullfile(folders,files);
+
+dimensions = size(files);
+
+x1 = [];
+x2 = [];
+x3 = [];
+Y = [];
+
+for i = 1:dimensions(1)-1
+    data = tdfread( all_files{i} );
+    [ comx_cp, cp_vel ] = cp_series( data.ADJ_COMX, data.time, data.LEG_LENGTH ); 
+    
+    len = size( cp_vel );
+       
+    data.talus_r_X = data.talus_r_X - data.talus_r_X(1);
+    data.center_of_mass_Z = data.center_of_mass_Z - data.center_of_mass_Z(1);
+    
+    % Find Peak 
+    d =  (data.center_of_mass_Z .*  data.talus_r_X); % Enhance Peaks
+    [pks, locs] = findpeaks( d ); 
+    val = round(mean(diff(locs)), 0);
+    index = locs - round((val/1.1),0) + round((val/1.8),0); 
+    
+    index_range = index(2:end); % last N gait cycles
+    dst_to_cp_val =  (comx_cp(index_range) - data.talus_r_X(index_range)) ; 
+    
+    x1 = [ x1; dst_to_cp_val ] ;
+    x3 = [ x3; data.N(2:end) ];
+    Y =  [ Y;  comx_cp ];
+    
+   % x1 = [ x1; minmax( data.toes_r_X(2:end) ) ] ;
+   % x2 = [ x2; minmax( data.toes_l_X(2:end) ) ] ;
+   % x3 = [ x3; minmax( data.pelvis_X(2:end) ) ] ;
+   % Y =  [ Y; minmax( comx_cp ) ]; 
+end
+
+X = [ x1 x2 x3 ];
+ALL = [ x1 x2 x3 Y ];
+
+% X = [ x1 x2 x3 ];
+% ALL = [ x1 x2 x3 Y ];
+
+% CREATE TRAINING DATA FOR PYTHON
+ALL = [ x1 x2 x3 Y ];
+csvwrite('FOOT_MODELLING_TRAINING_X.csv', ALL)
+
+time = linspace( 1, 342908, 342908 );
